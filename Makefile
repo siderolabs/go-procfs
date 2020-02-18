@@ -4,7 +4,7 @@ SHA ?= $(shell git describe --match=none --always --abbrev=8 --dirty)
 TAG ?= $(shell git describe --tag --always --dirty)
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 REGISTRY_AND_USERNAME := $(REGISTRY)/$(USERNAME)
-NAME := CHANGEME
+NAME := go-procfs
 IMAGE := $(REGISTRY_AND_USERNAME)/$(NAME)
 MODULE := github.com/talos-systems/$(NAME)
 
@@ -25,7 +25,7 @@ COMMON_ARGS += --build-arg=TAG=$(TAG)
 COMMON_ARGS += --build-arg=MODULE=$(MODULE)
 COMMON_ARGS += --build-arg=PKGS=$(PKGS)
 
-all: container
+all: unit-tests unit-tests-race
 
 # Help Menu
 
@@ -50,13 +50,6 @@ docker buildx create --driver docker-container --name local --buildkitd-flags --
 
 If you already have a compatible builder instance, you may use that instead.
 
-## Artifacts
-
-All artifacts will be output to ./$(ARTIFACTS). Images will be tagged with the
-registry "$(REGISTRY)", username "$(USERNAME)", and a dynamic tag (e.g. $(IMAGE):$(TAG)).
-The registry and username can be overriden by exporting REGISTRY, and USERNAME
-respectively.
-
 endef
 
 export HELP_MENU_HEADER
@@ -75,12 +68,6 @@ local-%: ## Builds the specified target defined in the Dockerfile using the loca
 
 docker-%: ## Builds the specified target defined in the Dockerfile using the docker output type. The build result will be loaded into docker.
 	@$(MAKE) target-$* TARGET_ARGS="--tag $(IMAGE):$(TAG) $(TARGET_ARGS)"
-
-# Artifacts
-
-.PHONY: container
-container: ## Build the container image.
-	@$(MAKE) docker-$@ TARGET_ARGS="--push=$(PUSH)"
 
 # Code Quality
 
@@ -105,10 +92,6 @@ unit-tests-race: ## Performs unit tests with race detection enabled.
 	@$(MAKE) target-$@
 
 # Utilities
-
-.PHONY: login
-login: ## Logs in to the configured container registry.
-	@docker login --username "$(DOCKER_USERNAME)" --password "$(DOCKER_PASSWORD)" $(REGISTRY)
 
 .PHONY: clean
 clean: ## Cleans up all artifacts.
