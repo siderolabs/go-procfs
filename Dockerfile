@@ -25,7 +25,7 @@ RUN ! go mod tidy -v 2>&1 | grep .
 
 FROM base AS unit-tests-runner
 ARG TESTPKGS
-RUN --security=insecure --mount=type=cache,id=testspace,target=/tmp --mount=type=cache,target=/root/.cache/go-build go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${TESTPKGS}
+RUN --mount=type=cache,id=testspace,target=/tmp --mount=type=cache,target=/root/.cache/go-build go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${TESTPKGS}
 
 FROM scratch AS unit-tests
 COPY --from=unit-tests-runner /src/coverage.txt /coverage.txt
@@ -62,15 +62,3 @@ RUN npm i sentences-per-line
 WORKDIR /src
 COPY --from=base /src .
 RUN markdownlint --rules /node_modules/sentences-per-line/index.js .
-
-# The container target builds the container image.
-
-FROM base AS binary
-RUN --mount=type=cache,target=/root/.cache/go-build GOOS=linux go build -ldflags "-s -w" -o /CHANGEME
-RUN chmod +x /CHANGEME
-
-FROM scratch AS container
-COPY --from=docker.io/autonomy/ca-certificates:v0.1.0 / /
-COPY --from=docker.io/autonomy/fhs:v0.1.0 / /
-COPY --from=binary /CHANGEME /CHANGEME
-ENTRYPOINT [ "/CHANGEME" ]
