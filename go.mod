@@ -1,4 +1,4 @@
-module github.com/talos-system/go-procfs
+module github.com/talos-systems/go-procfs
 
 go 1.13
 
