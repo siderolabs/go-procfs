@@ -24,8 +24,8 @@ RUN ! go mod tidy -v 2>&1 | grep .
 # The test target performs tests on the source code.
 
 FROM base AS unit-tests-runner
-ARG TESTPKGS
-RUN --mount=type=cache,id=testspace,target=/tmp --mount=type=cache,target=/root/.cache/go-build go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${TESTPKGS}
+ARG PKGS
+RUN --mount=type=cache,id=testspace,target=/tmp --mount=type=cache,target=/root/.cache/go-build go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${PKGS}
 
 FROM scratch AS unit-tests
 COPY --from=unit-tests-runner /src/coverage.txt /coverage.txt
@@ -34,8 +34,8 @@ COPY --from=unit-tests-runner /src/coverage.txt /coverage.txt
 
 FROM base AS unit-tests-race
 ENV CGO_ENABLED 1
-ARG TESTPKGS
-RUN --mount=type=cache,target=/root/.cache/go-build go test -v -count 1 -race ${TESTPKGS}
+ARG PKGS
+RUN --mount=type=cache,target=/root/.cache/go-build go test -v -count 1 -race ${PKGS}
 
 # The lint target performs linting on the source code.
 
