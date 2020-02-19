@@ -1,8 +1,5 @@
 *
-!api
-!hack
-!internal
-!pkg
+!procfs
 !go.mod
 !go.sum
 !*.go
