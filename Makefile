@@ -6,7 +6,7 @@ BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 REGISTRY_AND_USERNAME := $(REGISTRY)/$(USERNAME)
 NAME := go-procfs
 IMAGE := $(REGISTRY_AND_USERNAME)/$(NAME)
-MODULE := github.com/talos-systems/$(NAME)
+MODULE := $(shell head -1 go.mod | cut -d' ' -f2)
 
 ARTIFACTS := _out
 OPERATING_SYSTEM := $(shell uname -s | tr "[:upper:]" "[:lower:]")
