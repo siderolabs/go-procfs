@@ -1,16 +1,8 @@
-/*
-Copyright 2020 Talos Systems, Inc.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+// Package procfs provides function to manager kernel command line arguments.
 package procfs
 
 import (
@@ -137,8 +129,9 @@ var (
 	once     sync.Once
 )
 
-// Cmdline returns a representation of /proc/cmdline.
-// nolint: golint
+// ProcCmdline returns a representation of /proc/cmdline.
+//
+//nolint: golint
 func ProcCmdline() *Cmdline {
 	once.Do(func() {
 		var err error
@@ -152,7 +145,8 @@ func ProcCmdline() *Cmdline {
 
 // NewCmdline initializes and returns a representation of the cmdline values
 // specified by `parameters`.
-// nolint: golint
+//
+//nolint: golint
 func NewCmdline(parameters string) *Cmdline {
 	parsed := parse(parameters)
 	c := &Cmdline{sync.Mutex{}, parsed}
@@ -160,11 +154,12 @@ func NewCmdline(parameters string) *Cmdline {
 	return c
 }
 
-// AppendDefaults add the Talos default kernel commandline options to the existing set
+// AppendDefaults add the Talos default kernel commandline options to the existing set.
+//
 // See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/admin-guide/kernel-parameters.txt
 func (c *Cmdline) AppendDefaults() {
-	c.Append("page_poison", "1")
-	c.Append("slub_debug", "P")
+	c.Append("init_on_alloc", "1")
+	c.Append("init_on_free", "1")
 	c.Append("slab_nomerge", "")
 	c.Append("pti", "on")
 	c.Append("consoleblank", "0")
@@ -201,19 +196,21 @@ func (c *Cmdline) Set(k string, v *Parameter) {
 	for i, value := range c.Parameters {
 		if value.key == k {
 			c.Parameters = append(c.Parameters[:i], append([]*Parameter{v}, c.Parameters[i:]...)...)
+
 			return
 		}
 	}
 }
 
 // Append appends a kernel parameter.
-func (c *Cmdline) Append(k string, v string) {
+func (c *Cmdline) Append(k, v string) {
 	c.Lock()
 	defer c.Unlock()
 
 	for _, value := range c.Parameters {
 		if value.key == k {
 			value.Append(v)
+
 			return
 		}
 	}
@@ -238,6 +235,7 @@ func insert(values *Parameters, key, value string) {
 	for _, v := range *values {
 		if v.key == key {
 			v.Append(value)
+
 			return
 		}
 	}
