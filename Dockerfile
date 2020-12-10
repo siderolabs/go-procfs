@@ -1,64 +1,67 @@
-# syntax = docker/dockerfile-upstream:1.1.4-experimental
+# syntax = docker/dockerfile-upstream:1.2.0-labs
 
-# The base target provides the base for running various tasks against the source
-# code.
+# THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
+#
+# Generated on 2020-12-10T14:39:08Z by kres 31dc49d-dirty.
 
-FROM golang:1.13 AS base
-ENV GO111MODULE on
-ENV GOPROXY https://proxy.golang.org
-ENV CGO_ENABLED 0
-WORKDIR /tmp
-RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /go/bin v1.23.3
-RUN cd $(mktemp -d) \
-  && go mod init tmp \
-  && go get mvdan.cc/gofumpt/gofumports
+ARG TOOLCHAIN
+
+# runs markdownlint
+FROM node:14.8.0-alpine AS lint-markdown
+RUN npm i -g markdownlint-cli@0.23.2
+RUN npm i sentences-per-line@0.2.1
 WORKDIR /src
-COPY ./go.mod ./
-COPY ./go.sum ./
-RUN go mod download
-RUN go mod verify
-COPY ./ ./
-RUN go list -mod=readonly all >/dev/null
-RUN ! go mod tidy -v 2>&1 | grep .
+COPY .markdownlint.json .
+COPY ./README.md ./README.md
+RUN markdownlint --ignore "**/node_modules/**" --ignore '**/hack/chglog/**' --rules /node_modules/sentences-per-line/index.js .
 
-# The test target performs tests on the source code.
+# base toolchain image
+FROM ${TOOLCHAIN} AS toolchain
+RUN apk --update --no-cache add bash curl build-base
 
-FROM base AS unit-tests-runner
-ARG PKGS
-RUN --mount=type=cache,id=testspace,target=/tmp --mount=type=cache,target=/root/.cache/go-build go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${PKGS}
+# build tools
+FROM toolchain AS tools
+ENV GO111MODULE on
+ENV CGO_ENABLED 0
+ENV GOPATH /go
+RUN curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s -- -b /bin v1.33.0
+ARG GOFUMPT_VERSION
+RUN cd $(mktemp -d) \
+	&& go mod init tmp \
+	&& go get mvdan.cc/gofumpt/gofumports@${GOFUMPT_VERSION} \
+	&& mv /go/bin/gofumports /bin/gofumports
+
+# tools and sources
+FROM tools AS base
+WORKDIR /src
+COPY ./go.mod .
+COPY ./go.sum .
+RUN --mount=type=cache,target=/go/pkg go mod download
+RUN --mount=type=cache,target=/go/pkg go mod verify
+COPY ./procfs ./procfs
+RUN --mount=type=cache,target=/go/pkg go list -mod=readonly all >/dev/null
+
+# runs gofumpt
+FROM base AS lint-gofumpt
+RUN find . -name '*.pb.go' | xargs -r rm
+RUN FILES="$(gofumports -l -local github.com/talos-systems/go-procfs .)" && test -z "${FILES}" || (echo -e "Source code is not formatted with 'gofumports -w -local github.com/talos-systems/go-procfs .':\n${FILES}"; exit 1)
+
+# runs golangci-lint
+FROM base AS lint-golangci-lint
+COPY .golangci.yml .
+ENV GOGC 50
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/root/.cache/golangci-lint --mount=type=cache,target=/go/pkg golangci-lint run --config .golangci.yml
+
+# runs unit-tests with race detector
+FROM base AS unit-tests-race
+ARG TESTPKGS
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg --mount=type=cache,target=/tmp CGO_ENABLED=1 go test -v -race -count 1 ${TESTPKGS}
+
+# runs unit-tests
+FROM base AS unit-tests-run
+ARG TESTPKGS
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg --mount=type=cache,target=/tmp go test -v -covermode=atomic -coverprofile=coverage.txt -count 1 ${TESTPKGS}
 
 FROM scratch AS unit-tests
-COPY --from=unit-tests-runner /src/coverage.txt /coverage.txt
+COPY --from=unit-tests-run /src/coverage.txt /coverage.txt
 
-# The unit-tests-race target performs tests with race detector.
-
-FROM base AS unit-tests-race
-ENV CGO_ENABLED 1
-ARG PKGS
-RUN --mount=type=cache,target=/root/.cache/go-build go test -v -count 1 -race ${PKGS}
-
-# The lint target performs linting on the source code.
-
-FROM base AS lint-go
-ENV GOGC=50
-RUN --mount=type=cache,target=/root/.cache/go-build /go/bin/golangci-lint run
-ARG MODULE
-RUN FILES="$(gofumports -l -local ${MODULE} .)" && test -z "${FILES}" || (echo -e "Source code is not formatted with 'gofumports -w -local ${MODULE} .':\n${FILES}"; exit 1)
-
-# The fmt target formats the source code.
-
-FROM base AS fmt-build
-ARG MODULE
-RUN gofumports -w -local ${MODULE} .
-
-FROM scratch AS fmt
-COPY --from=fmt-build /src /
-
-# The markdownlint target performs linting on Markdown files.
-
-FROM node:8.16.1-alpine AS lint-markdown
-RUN npm install -g markdownlint-cli
-RUN npm i sentences-per-line
-WORKDIR /src
-COPY --from=base /src .
-RUN markdownlint --rules /node_modules/sentences-per-line/index.js .
