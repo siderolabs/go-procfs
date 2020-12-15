@@ -73,33 +73,38 @@ func (suite *KernelSuite) TestCmdlineGet() {
 
 func (suite *KernelSuite) TestCmdlineSet() {
 	for _, t := range []struct {
-		params   string
-		k        string
-		v        *Parameter
-		expected *Parameter
+		params         string
+		k              string
+		v              *Parameter
+		expected       *Parameter
+		expectedParams string
 	}{
 		{
 			"root=/dev/sda root=/dev/sdb",
 			"root",
 			&Parameter{key: "root", values: []string{"/dev/sdc"}},
 			&Parameter{key: "root", values: []string{"/dev/sdc"}},
+			"root=/dev/sdc",
 		},
 		{
 			"boot=xyz root=/dev/abc nogui console=tty0 console=ttyS0,9600",
 			"console",
-			&Parameter{key: "console", values: nil},
-			&Parameter{key: "console", values: nil},
+			&Parameter{key: "console", values: []string{""}},
+			&Parameter{key: "console", values: []string{""}},
+			"boot=xyz root=/dev/abc nogui console",
 		},
 		{
 			"initrd=initramfs.xz",
 			"initrd",
 			&Parameter{key: "initrd", values: []string{"/ROOT-A/initramfs.xz"}},
 			&Parameter{key: "initrd", values: []string{"/ROOT-A/initramfs.xz"}},
+			"initrd=/ROOT-A/initramfs.xz",
 		},
 	} {
 		cmdline := NewCmdline(t.params)
 		cmdline.Set(t.k, t.v)
 		suite.Assert().Equal(t.expected, cmdline.Get(t.k))
+		suite.Assert().Equal(t.expectedParams, cmdline.String())
 	}
 }
 
