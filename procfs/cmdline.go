@@ -195,7 +195,7 @@ func (c *Cmdline) Set(k string, v *Parameter) {
 
 	for i, value := range c.Parameters {
 		if value.key == k {
-			c.Parameters = append(c.Parameters[:i], append([]*Parameter{v}, c.Parameters[i:]...)...)
+			c.Parameters = append(c.Parameters[:i], append([]*Parameter{v}, c.Parameters[i+1:]...)...)
 
 			return
 		}
