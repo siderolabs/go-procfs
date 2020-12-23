@@ -6,6 +6,7 @@
 package procfs
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -100,6 +101,13 @@ func (suite *KernelSuite) TestCmdlineSet() {
 			&Parameter{key: "initrd", values: []string{"/ROOT-A/initramfs.xz"}},
 			"initrd=/ROOT-A/initramfs.xz",
 		},
+		{
+			"",
+			"initrd",
+			&Parameter{key: "initrd", values: []string{"/ROOT-A/initramfs.xz"}},
+			&Parameter{key: "initrd", values: []string{"/ROOT-A/initramfs.xz"}},
+			"initrd=/ROOT-A/initramfs.xz",
+		},
 	} {
 		cmdline := NewCmdline(t.params)
 		cmdline.Set(t.k, t.v)
@@ -141,9 +149,9 @@ func (suite *KernelSuite) TestCmdlineAppendAll() {
 		expected string
 	}{
 		{
-			"ip=dhcp console=x",
+			"ip=dhcp console=x root=/dev/sdc",
 			[]string{"root=/dev/sda", "root=/dev/sdb"},
-			"ip=dhcp console=x root=/dev/sda root=/dev/sdb",
+			"ip=dhcp console=x root=/dev/sdc root=/dev/sda root=/dev/sdb",
 		},
 		{
 			"root=/dev/sdb",
@@ -153,7 +161,50 @@ func (suite *KernelSuite) TestCmdlineAppendAll() {
 	} {
 		cmdline := NewCmdline(t.initial)
 		err := cmdline.AppendAll(t.params)
+		visited := map[string]bool{}
+
+		for _, p := range cmdline.Parameters {
+			if visited[p.key] {
+				suite.FailNow(fmt.Sprintf("duplicate key %s", p.key))
+			}
+
+			visited[p.key] = true
+		}
+
 		suite.Assert().NoError(err)
+		suite.Assert().Equal(t.expected, cmdline.String())
+	}
+}
+
+func (suite *KernelSuite) TestCmdlineSetAll() {
+	for _, t := range []struct {
+		initial  string
+		params   []string
+		expected string
+	}{
+		{
+			"",
+			[]string{"root=/dev/sda", "root=/dev/sdb"},
+			"root=/dev/sda root=/dev/sdb",
+		},
+		{
+			"root=/dev/sdb root=/dev/sdc aye=sir",
+			[]string{"root=/dev/mmcblk0"},
+			"root=/dev/mmcblk0 aye=sir",
+		},
+	} {
+		cmdline := NewCmdline(t.initial)
+		cmdline.SetAll(t.params)
+
+		visited := map[string]bool{}
+		for _, p := range cmdline.Parameters {
+			if visited[p.key] {
+				suite.FailNow(fmt.Sprintf("duplicate key %s", p.key))
+			}
+
+			visited[p.key] = true
+		}
+
 		suite.Assert().Equal(t.expected, cmdline.String())
 	}
 }

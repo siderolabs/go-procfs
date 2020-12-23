@@ -200,6 +200,16 @@ func (c *Cmdline) Set(k string, v *Parameter) {
 			return
 		}
 	}
+
+	c.Parameters = append(c.Parameters, v)
+}
+
+// SetAll sets kernel parameters.
+func (c *Cmdline) SetAll(args []string) {
+	parameters := parse(strings.Join(args, " "))
+	for _, p := range parameters {
+		c.Set(p.key, p)
+	}
 }
 
 // Append appends a kernel parameter.
@@ -221,7 +231,11 @@ func (c *Cmdline) Append(k, v string) {
 // AppendAll appends a set of kernel parameters.
 func (c *Cmdline) AppendAll(args []string) error {
 	parameters := parse(strings.Join(args, " "))
-	c.Parameters = append(c.Parameters, parameters...)
+	for _, p := range parameters {
+		for _, v := range p.values {
+			c.Append(p.key, v)
+		}
+	}
 
 	return nil
 }
