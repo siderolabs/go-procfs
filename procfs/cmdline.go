@@ -11,16 +11,6 @@ import (
 	"sync"
 )
 
-// NewDefaultCmdline returns a set of kernel parameters that serve as the base
-// for all Talos installations.
-// nolint: golint
-func NewDefaultCmdline() *Cmdline {
-	cmdline := NewCmdline("")
-	cmdline.AppendDefaults()
-
-	return cmdline
-}
-
 // Key represents a key in a kernel parameter key-value pair.
 type Key = string
 
@@ -152,26 +142,6 @@ func NewCmdline(parameters string) *Cmdline {
 	c := &Cmdline{sync.Mutex{}, parsed}
 
 	return c
-}
-
-// AppendDefaults add the Talos default kernel commandline options to the existing set.
-//
-// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/admin-guide/kernel-parameters.txt
-func (c *Cmdline) AppendDefaults() {
-	c.Append("init_on_alloc", "1")
-	c.Append("init_on_free", "1")
-	c.Append("slab_nomerge", "")
-	c.Append("pti", "on")
-	c.Append("consoleblank", "0")
-	// AWS recommends setting the nvme_core.io_timeout to the highest value possible.
-	// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/nvme-ebs-volumes.html.
-	c.Append("nvme_core.io_timeout", "4294967295")
-	c.Append("random.trust_cpu", "on")
-	// Disable rate limited printk
-	c.Append("printk.devkmsg", "on")
-	c.Append("ima_template", "ima-ng")
-	c.Append("ima_appraise", "fix")
-	c.Append("ima_hash", "sha512")
 }
 
 // Get gets a kernel parameter.
