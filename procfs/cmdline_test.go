@@ -146,21 +146,36 @@ func (suite *KernelSuite) TestCmdlineAppendAll() {
 	for _, t := range []struct {
 		initial  string
 		params   []string
+		opts     []AppendAllOption
 		expected string
 	}{
 		{
 			"ip=dhcp console=x root=/dev/sdc",
 			[]string{"root=/dev/sda", "root=/dev/sdb"},
+			nil,
 			"ip=dhcp console=x root=/dev/sdc root=/dev/sda root=/dev/sdb",
 		},
 		{
 			"root=/dev/sdb",
 			[]string{"this=that=those"},
+			nil,
 			"root=/dev/sdb this=that=those",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"console=tty0", "console=ttyS1,115200", "nogui"},
+			nil,
+			"console=tty0 console=ttyS0 console=tty0 console=ttyS1,115200 root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"console=tty0", "console=ttyS1,115200", "nogui"},
+			[]AppendAllOption{WithOverwriteArgs("console")},
+			"console=tty0 console=ttyS1,115200 root=/dev/sdb nogui",
 		},
 	} {
 		cmdline := NewCmdline(t.initial)
-		err := cmdline.AppendAll(t.params)
+		err := cmdline.AppendAll(t.params, t.opts...)
 		visited := map[string]bool{}
 
 		for _, p := range cmdline.Parameters {
