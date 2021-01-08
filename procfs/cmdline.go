@@ -198,10 +198,47 @@ func (c *Cmdline) Append(k, v string) {
 	insert(&c.Parameters, k, v)
 }
 
+// AppendAllOptions provides additional options for AppendAll.
+type AppendAllOptions struct {
+	OverwriteArgs []string
+}
+
+// AppendAllOption is a functional option for AppendAll.
+type AppendAllOption func(*AppendAllOptions)
+
+// WithOverwriteArgs specifies kernel arguments which should be overwritten with AppendAll.
+func WithOverwriteArgs(args ...string) AppendAllOption {
+	return func(opts *AppendAllOptions) {
+		opts.OverwriteArgs = append(opts.OverwriteArgs, args...)
+	}
+}
+
 // AppendAll appends a set of kernel parameters.
-func (c *Cmdline) AppendAll(args []string) error {
+func (c *Cmdline) AppendAll(args []string, opts ...AppendAllOption) error {
+	var options AppendAllOptions
+
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	parameters := parse(strings.Join(args, " "))
 	for _, p := range parameters {
+		overwrite := false
+
+		for _, key := range options.OverwriteArgs {
+			if key == p.key {
+				overwrite = true
+
+				break
+			}
+		}
+
+		if overwrite {
+			c.Set(p.key, p)
+
+			continue
+		}
+
 		for _, v := range p.values {
 			c.Append(p.key, v)
 		}
