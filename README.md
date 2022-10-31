@@ -1,1 +1,1 @@
-# go-pocfs
+# go-procfs

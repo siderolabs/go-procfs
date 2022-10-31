@@ -6,7 +6,7 @@
 package procfs
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 )
@@ -110,8 +110,8 @@ func (p Parameters) Strings() []string {
 
 // Cmdline represents a set of kernel parameters.
 type Cmdline struct {
-	sync.Mutex
 	Parameters
+	sync.Mutex
 }
 
 var (
@@ -121,7 +121,7 @@ var (
 
 // ProcCmdline returns a representation of /proc/cmdline.
 //
-//nolint: golint
+//nolint:golint
 func ProcCmdline() *Cmdline {
 	once.Do(func() {
 		var err error
@@ -136,10 +136,12 @@ func ProcCmdline() *Cmdline {
 // NewCmdline initializes and returns a representation of the cmdline values
 // specified by `parameters`.
 //
-//nolint: golint
+//nolint:golint
 func NewCmdline(parameters string) *Cmdline {
 	parsed := parse(parameters)
-	c := &Cmdline{sync.Mutex{}, parsed}
+	c := &Cmdline{
+		Parameters: parsed,
+	}
 
 	return c
 }
@@ -285,13 +287,15 @@ func parse(parameters string) (parsed Parameters) {
 func read() (c *Cmdline, err error) {
 	var parameters []byte
 
-	parameters, err = ioutil.ReadFile("/proc/cmdline")
+	parameters, err = os.ReadFile("/proc/cmdline")
 	if err != nil {
 		return nil, err
 	}
 
 	parsed := parse(string(parameters))
-	c = &Cmdline{sync.Mutex{}, parsed}
+	c = &Cmdline{
+		Parameters: parsed,
+	}
 
 	return c, nil
 }

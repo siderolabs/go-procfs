@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-//nolint: testpackage
+//nolint:testpackage
 package procfs
 
 import (
@@ -51,7 +51,7 @@ func (suite *KernelSuite) TestNewCmdline() {
 }
 
 func (suite *KernelSuite) TestCmdlineGet() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		params   string
 		arg      string
 		expected *Parameter
@@ -117,7 +117,7 @@ func (suite *KernelSuite) TestCmdlineSet() {
 }
 
 func (suite *KernelSuite) TestCmdlineAppend() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		params   string
 		k        string
 		v        string
@@ -143,7 +143,7 @@ func (suite *KernelSuite) TestCmdlineAppend() {
 }
 
 func (suite *KernelSuite) TestCmdlineAppendAll() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		initial  string
 		params   []string
 		opts     []AppendAllOption
@@ -192,7 +192,7 @@ func (suite *KernelSuite) TestCmdlineAppendAll() {
 }
 
 func (suite *KernelSuite) TestCmdlineSetAll() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		initial  string
 		params   []string
 		expected string
@@ -269,7 +269,7 @@ func (suite *KernelSuite) TestParameterFirst() {
 }
 
 func (suite *KernelSuite) TestParameterGet() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		value    *Parameter
 		idx      int
 		expected *string
@@ -282,7 +282,7 @@ func (suite *KernelSuite) TestParameterGet() {
 }
 
 func (suite *KernelSuite) TestParameterAppend() {
-	for _, t := range []struct {
+	for _, t := range []struct { //nolint:govet
 		value    *Parameter
 		app      string
 		expected *Parameter
