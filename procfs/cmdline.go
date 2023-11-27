@@ -7,6 +7,7 @@ package procfs
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -184,6 +185,42 @@ func (c *Cmdline) SetAll(args []string) {
 	}
 }
 
+// Delete deletes a kernel parameter by exact match.
+func (c *Cmdline) Delete(v *Parameter) {
+	c.Lock()
+	defer c.Unlock()
+
+	for i, value := range c.Parameters {
+		if value.key == v.key {
+			c.Parameters[i].values = slices.DeleteFunc(value.values, func(outerVal string) bool {
+				for _, val := range v.values {
+					if val == outerVal {
+						return true
+					}
+				}
+
+				return false
+			})
+
+			return
+		}
+	}
+}
+
+// DeleteAll deletes all occurrences of the kernel parameter.
+func (c *Cmdline) DeleteAll(k string) {
+	c.Lock()
+	defer c.Unlock()
+
+	for i, value := range c.Parameters {
+		if value.key == k {
+			c.Parameters = slices.Delete(c.Parameters, i, i+1)
+
+			return
+		}
+	}
+}
+
 // Append appends a kernel parameter.
 func (c *Cmdline) Append(k, v string) {
 	c.Lock()
@@ -202,7 +239,8 @@ func (c *Cmdline) Append(k, v string) {
 
 // AppendAllOptions provides additional options for AppendAll.
 type AppendAllOptions struct {
-	OverwriteArgs []string
+	OverwriteArgs     []string
+	DeleteNegatedArgs bool
 }
 
 // AppendAllOption is a functional option for AppendAll.
@@ -212,6 +250,13 @@ type AppendAllOption func(*AppendAllOptions)
 func WithOverwriteArgs(args ...string) AppendAllOption {
 	return func(opts *AppendAllOptions) {
 		opts.OverwriteArgs = append(opts.OverwriteArgs, args...)
+	}
+}
+
+// WithDeleteNegatedArgs specifies whether kernel arguments that starts with `-` should be removed with AppendAll.
+func WithDeleteNegatedArgs() AppendAllOption {
+	return func(opts *AppendAllOptions) {
+		opts.DeleteNegatedArgs = true
 	}
 }
 
@@ -225,6 +270,19 @@ func (c *Cmdline) AppendAll(args []string, opts ...AppendAllOption) error {
 
 	parameters := parse(strings.Join(args, " "))
 	for _, p := range parameters {
+		// it's valid to have a kernel arg just as `-`.
+		// Ref: https://www.kernel.org/doc/html/v4.14/admin-guide/kernel-parameters.html
+		if options.DeleteNegatedArgs && len(p.key) > 1 && p.key[0] == '-' {
+			switch p.values[0] {
+			case "":
+				c.DeleteAll(p.key[1:])
+			default:
+				c.Delete(&Parameter{key: p.key[1:], values: p.values})
+			}
+
+			continue
+		}
+
 		overwrite := false
 
 		for _, key := range options.OverwriteArgs {

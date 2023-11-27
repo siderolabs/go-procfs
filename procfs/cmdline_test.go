@@ -116,6 +116,92 @@ func (suite *KernelSuite) TestCmdlineSet() {
 	}
 }
 
+func (suite *KernelSuite) TestCmdlineDelete() {
+	for _, t := range []struct {
+		params   string
+		p        *Parameter
+		expected string
+	}{
+		{
+			"console=tty0",
+			&Parameter{key: "console", values: []string{""}},
+			"console=tty0",
+		},
+		{
+			"console=tty0",
+			&Parameter{key: "console", values: []string{"tty"}},
+			"console=tty0",
+		},
+		{
+			"console=tty0",
+			&Parameter{key: "console", values: []string{"tty0"}},
+			"",
+		},
+		{
+			"console=tty0 console=ttyS0,9600",
+			&Parameter{key: "console", values: []string{"ttyS0,9600"}},
+			"console=tty0",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			&Parameter{key: "console", values: []string{"ttyS0,9600"}},
+			"console=tty0 console=ttyS0,115000 root=/dev/sda panic=0",
+		},
+		{
+			"root=/dev/sda panic=0",
+			&Parameter{key: "console", values: []string{"ttyS0,9600"}},
+			"root=/dev/sda panic=0",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			&Parameter{key: "console", values: []string{"ttyS0,96000"}},
+			"console=tty0 console=ttyS0,9600 console=ttyS0,115000 root=/dev/sda panic=0",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			&Parameter{key: "consoles", values: []string{"ttyS0,9600"}},
+			"console=tty0 console=ttyS0,9600 console=ttyS0,115000 root=/dev/sda panic=0",
+		},
+		{
+			"console=tty0 console=ttyS0,9600",
+			&Parameter{key: "console", values: []string{"ttyS0,9600", "tty0"}},
+			"",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			&Parameter{key: "console", values: []string{"ttyS0,9600", "tty0"}},
+			"console=ttyS0,115000 root=/dev/sda panic=0",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			&Parameter{key: "console", values: []string{"ttyS0,9600", "tty0"}},
+			"console=ttyS0,115000 root=/dev/sda panic=0",
+		},
+	} {
+		cmdline := NewCmdline(t.params)
+		cmdline.Delete(t.p)
+		suite.Assert().Equal(t.expected, cmdline.String())
+	}
+}
+
+func (suite *KernelSuite) TestCmdlineDeleteAll() {
+	for _, t := range []struct {
+		params   string
+		key      string
+		expected string
+	}{
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sda panic=0 console=ttyS0,115000",
+			"console",
+			"root=/dev/sda panic=0",
+		},
+	} {
+		cmdline := NewCmdline(t.params)
+		cmdline.DeleteAll(t.key)
+		suite.Assert().Equal(t.expected, cmdline.String())
+	}
+}
+
 func (suite *KernelSuite) TestCmdlineAppend() {
 	for _, t := range []struct { //nolint:govet
 		params   string
@@ -172,6 +258,48 @@ func (suite *KernelSuite) TestCmdlineAppendAll() {
 			[]string{"console=tty0", "console=ttyS1,115200", "nogui"},
 			[]AppendAllOption{WithOverwriteArgs("console")},
 			"console=tty0 console=ttyS1,115200 root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"-console", "nogui"},
+			[]AppendAllOption{WithOverwriteArgs("console"), WithDeleteNegatedArgs()},
+			"root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sdb",
+			[]string{"-console", "nogui"},
+			[]AppendAllOption{WithDeleteNegatedArgs()},
+			"root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0,9600 root=/dev/sdb",
+			[]string{"-console=ttyS0,9600", "nogui"},
+			[]AppendAllOption{WithDeleteNegatedArgs()},
+			"console=tty0 root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"-console=tty0", "nogui"},
+			[]AppendAllOption{WithOverwriteArgs("console"), WithDeleteNegatedArgs()},
+			"console=ttyS0 root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"-console", "nogui", "console=ttyAMA0"},
+			[]AppendAllOption{WithOverwriteArgs("console"), WithDeleteNegatedArgs()},
+			"root=/dev/sdb nogui console=ttyAMA0",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"-console=tty0", "nogui", "console=ttyAMA0"},
+			[]AppendAllOption{WithDeleteNegatedArgs()},
+			"console=ttyS0 console=ttyAMA0 root=/dev/sdb nogui",
+		},
+		{
+			"console=tty0 console=ttyS0 root=/dev/sdb",
+			[]string{"-console=tty0", "nogui", "console=ttyAMA0"},
+			[]AppendAllOption{WithOverwriteArgs("console"), WithDeleteNegatedArgs()},
+			"console=ttyAMA0 root=/dev/sdb nogui",
 		},
 	} {
 		cmdline := NewCmdline(t.initial)
