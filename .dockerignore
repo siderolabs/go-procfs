@@ -1,8 +1,8 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED, PLEASE DO NOT EDIT.
 #
-# Generated on 2020-12-10T14:39:08Z by kres 31dc49d-dirty.
+# Generated on 2023-11-27T03:58:07Z by kres latest.
 
-**
+*
 !procfs
 !go.mod
 !go.sum
